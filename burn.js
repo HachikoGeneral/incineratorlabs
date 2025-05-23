@@ -67,7 +67,7 @@ initWebSocket();
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const TARGET_TOKEN_MINT = process.env.TARGET_TOKEN_MINT;
-const INTERVAL = process.env.INTERVAL || '30m';
+const INTERVAL = process.env.INTERVAL || '120m';
 const BURN_RATIO = parseFloat(process.env.BURN_RATIO) || 0.01;
 const MIN_BALANCE_SOL = BURN_RATIO * 1e9;
 const PUMPSWAP_REWARD = process.env.PUMPSWAP_REWARD === 'true';
