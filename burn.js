@@ -111,7 +111,7 @@ async function claimPumpFunCreatorFee() {
   const instructionData = Buffer.from("1416567bc61cdb84", "hex");
   const keys = [
     { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-    { pubkey: new PublicKey("9PRQYGFwcGhaMBx3KiPy62MSzaFyETDZ5U8Qr2HAavTX"), isSigner: false, isWritable: true },
+    { pubkey: new PublicKey("83DCwHSCjBXTRGDQAgW1SunV1DY8S6wk6suS2AqE15d"), isSigner: false, isWritable: true },
     { pubkey: new PublicKey("11111111111111111111111111111111"), isSigner: false, isWritable: false },
     { pubkey: new PublicKey("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"), isSigner: false, isWritable: false },
     { pubkey: programId, isSigner: false, isWritable: false },
