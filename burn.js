@@ -73,7 +73,7 @@ const MIN_BALANCE_SOL = BURN_RATIO * 1e9;
 const PUMPSWAP_REWARD = process.env.PUMPSWAP_REWARD === 'true';
 
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
-const privateKeyArray = bs58.decode(PRIVATE_KEY);
+const privateKeyArray = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY));
 const wallet = Keypair.fromSecretKey(privateKeyArray);
 
 logInfo('Wallet Public Key:', wallet.publicKey.toBase58());
