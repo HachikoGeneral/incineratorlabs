@@ -107,7 +107,7 @@ async function getTokenAccountBalance(tokenAccount) {
 
 async function claimPumpFunCreatorFee() {
   logInfo('Claiming Pump.fun Creator Fee...');
-  const programId = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+  const programId = new PublicKey("83DCwHSCjBXTRGDQAgW1SunV1DY8S6wk6suS2AqE15d");
   const instructionData = Buffer.from("1416567bc61cdb84", "hex");
   const keys = [
     { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
