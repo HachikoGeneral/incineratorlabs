@@ -74,6 +74,9 @@ const PUMPSWAP_REWARD = process.env.PUMPSWAP_REWARD === 'true';
 
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 const privateKeyArray = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY));
+if (privateKeyArray.length !== 64) {
+  throw new Error(`Invalid secret key size: ${privateKeyArray.length} bytes (expected 64).`);
+}
 const wallet = Keypair.fromSecretKey(privateKeyArray);
 
 logInfo('Wallet Public Key:', wallet.publicKey.toBase58());
