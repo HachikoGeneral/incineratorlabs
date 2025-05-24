@@ -108,45 +108,48 @@ async function executeJupiterSwap(inputMint, outputMint, amountLamports) {
     const inAmount = amountLamports.toString();
     logInfo(`Swapping: ${inputMint.toBase58()} → ${outputMint.toBase58()} | Amount: ${Number(amountLamports) / 1e9} SOL`);
 
-    const quoteUrl = `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint.toBase58()}&outputMint=${outputMint.toBase58()}&amount=${inAmount}&slippageBps=50`;
-    const quoteResponse = await fetchWithRetry('GET', quoteUrl);
-    const quoteData = quoteResponse.data;
-    if (!quoteData.routes || quoteData.routes.length === 0) {
-      logError('No route found for this token pair.');
+    const quoteResponse = await fetchWithRetry('GET', 'https://quote-api.jup.ag/v6/quote', {
+      params: {
+        inputMint: inputMint.toBase58(),
+        outputMint: outputMint.toBase58(),
+        amount: inAmount,
+        slippageBps: 100,             // 1% slippage
+        onlyDirectRoutes: false,      // Allow multi-hop (important!)
+        exactIn: true,                // We're giving input amount
+      },
+    });
+
+    const quote = quoteResponse.data;
+
+    if (!quote.routes || quote.routes.length === 0) {
+      logError('❌ Jupiter swap error: No route found for this token.');
       return null;
     }
 
-    const swapInstructionsResponse = await fetchWithRetry('POST', 'https://quote-api.jup.ag/v6/swap-instructions', {
-      data: {
-        quoteResponse: quoteData,
+    const route = quote.routes[0]; // Select best route
+
+    const swapInstructionsResponse = await fetch('https://quote-api.jup.ag/v6/swap-instructions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quoteResponse: route,
         userPublicKey: wallet.publicKey.toBase58(),
-      },
+      }),
     });
-    const swapInstructions = swapInstructionsResponse.data;
 
-    const blockhash = (await rpcWithRetry(() => connection.getLatestBlockhash())).blockhash;
-    const transaction = new Transaction({ feePayer: wallet.publicKey, recentBlockhash: blockhash });
+    const { swapTransaction } = await swapInstructionsResponse.json();
 
-    for (const ix of swapInstructions.swapTransaction.message.instructions) {
-      const keys = ix.accounts.map(a => ({
-        pubkey: new PublicKey(a.pubkey),
-        isSigner: a.isSigner,
-        isWritable: a.isWritable,
-      }));
-      transaction.add(new TransactionInstruction({
-        programId: new PublicKey(ix.programId),
-        keys,
-        data: Buffer.from(ix.data, 'base64'),
-      }));
-    }
+    const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, 'base64'));
+    tx.sign([wallet]);
 
-    const signedTx = await wallet.signTransaction(transaction);
-    const txid = await connection.sendRawTransaction(signedTx.serialize());
+    const txid = await connection.sendTransaction(tx, { skipPreflight: true });
     await connection.confirmTransaction(txid, 'confirmed');
-    logSuccess(`Swap transaction successful: https://solscan.io/tx/${txid}`);
+
+    logSuccess(`Swap successful: https://solscan.io/tx/${txid}`);
     return txid;
-  } catch (err) {
-    logError('Jupiter swap error:', err.message);
+
+  } catch (error) {
+    logError('Jupiter swap error:', error.message);
     return null;
   }
 }
@@ -156,27 +159,30 @@ async function buyAndBurnToken() {
     logInfo('Starting Buy and Burn Process...');
 
     if (PUMPSWAP_REWARD) {
-      // Optional logic here to claim pump.fun rewards
-      logInfo('Skipping pump.fun logic for simplicity');
+      await claimPumpFunCreatorFee();
+    } else {
+      logInfo('PUMPSWAP_REWARD is false. Skipping reward claim.');
     }
 
     const balance = await connection.getBalance(wallet.publicKey);
     logInfo(`Current SOL Balance: ${(balance / 1e9).toFixed(6)} SOL`);
+
     const amountToUse = balance - MIN_BALANCE_SOL;
     if (amountToUse <= 0) {
-      logError('Insufficient SOL balance to proceed.');
+      logError('❌ Insufficient SOL balance to proceed.');
       return;
     }
 
     const solMint = new PublicKey('So11111111111111111111111111111111111111112');
     const targetMint = new PublicKey(TARGET_TOKEN_MINT);
+
     const swapTx = await executeJupiterSwap(solMint, targetMint, BigInt(amountToUse));
     if (!swapTx) return;
 
     const associatedTokenAccount = await getAssociatedTokenAddress(targetMint, wallet.publicKey);
     const tokenBalance = await getTokenAccountBalance(associatedTokenAccount);
     if (tokenBalance === BigInt(0)) {
-      logError('Token account has zero balance. Skipping burn.');
+      logError('❌ Token account has zero balance. Skipping burn.');
       return;
     }
 
@@ -186,18 +192,20 @@ async function buyAndBurnToken() {
       wallet.publicKey,
       tokenBalance
     );
+
     const blockhash = (await rpcWithRetry(() => connection.getLatestBlockhash())).blockhash;
     const transaction = new Transaction({ recentBlockhash: blockhash, feePayer: wallet.publicKey }).add(burnInstruction);
 
     try {
       const burnTx = await connection.sendTransaction(transaction, [wallet]);
       await connection.confirmTransaction(burnTx, 'confirmed');
-      logSuccess(`Burn transaction confirmed: https://solscan.io/tx/${burnTx}`);
+      logSuccess(`🔥 Burn transaction sent and confirmed: https://solscan.io/tx/${burnTx}`);
     } catch (error) {
-      logError('Burn transaction error:', error.message);
+      logError('❌ Burn transaction error:', error.message);
     }
+
   } catch (error) {
-    logError('Error during Buy and Burn:', error.message);
+    logError('❌ Error during Buy and Burn:', error.message);
   }
 }
 
