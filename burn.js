@@ -81,7 +81,7 @@ async function burnHalfTokenBalance() {
 // --- Schedule burn every X minutes ---
 const minutes = parseInt(INTERVAL.replace('m', ''));
 schedule.scheduleJob(`*/${minutes} * * * *`, burnHalfTokenBalance);
-logSuccess('🔥 Burn bot (50%) running every 10 minutes...');
+logSuccess('🔥 Burn bot (50%) running every 60 minutes...');
 ;
 
 
