@@ -1,4 +1,4 @@
-// burn-50pct.js - Burn 50% of token balance every 10 minutes
+// burn-daily-12utc.js - Burn 50% of token balance every day at 12:00 UTC
 
 const {
   Connection,
@@ -42,7 +42,6 @@ const connection = new Connection(process.env.SOLANA_RPC_URL, 'confirmed');
 const privateKeyArray = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY));
 const wallet = Keypair.fromSecretKey(privateKeyArray);
 const TARGET_TOKEN_MINT = new PublicKey(process.env.TARGET_TOKEN_MINT);
-const INTERVAL = process.env.INTERVAL || 60m';
 
 // --- Helpers ---
 async function getTokenAccountBalance(tokenAccount) {
@@ -57,7 +56,7 @@ async function getTokenAccountBalance(tokenAccount) {
 // --- Burn 50% ---
 async function burnHalfTokenBalance() {
   try {
-    logInfo('🔁 Starting 50% burn cycle...');
+    logInfo('🔁 Starting 50% burn (12:00 UTC)...');
     const ata = await getAssociatedTokenAddress(TARGET_TOKEN_MINT, wallet.publicKey);
     const tokenBalance = await getTokenAccountBalance(ata);
 
@@ -78,11 +77,10 @@ async function burnHalfTokenBalance() {
   }
 }
 
-// --- Schedule burn every X minutes ---
-const minutes = parseInt(INTERVAL.replace('m', ''));
-schedule.scheduleJob(`*/${minutes} * * * *`, burnHalfTokenBalance);
-logSuccess('🔥 Burn bot (50%) running every 60 minutes...');
-;
+// --- Schedule daily at 12:00 UTC ---
+schedule.scheduleJob('0 12 * * *', burnHalfTokenBalance);
+logSuccess('🔥 Burn bot (50%) scheduled for 12:00 UTC daily...');
+
 
 
 
