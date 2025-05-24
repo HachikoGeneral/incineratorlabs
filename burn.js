@@ -52,7 +52,7 @@ initWebSocket();
 // Config
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL;
 const TARGET_TOKEN_MINT = process.env.TARGET_TOKEN_MINT;
-const INTERVAL = process.env.INTERVAL || '120m';
+const INTERVAL = process.env.INTERVAL || '10m';
 const BURN_RATIO = parseFloat(process.env.BURN_RATIO) || 0.01;
 const PUMPSWAP_REWARD = process.env.PUMPSWAP_REWARD === 'true';
 const MIN_BALANCE_SOL = BURN_RATIO * 1e9;
@@ -113,9 +113,10 @@ async function executeJupiterSwap(inputMint, outputMint, amountLamports) {
         inputMint: inputMint.toBase58(),
         outputMint: outputMint.toBase58(),
         amount: inAmount,
-        slippageBps: 100,             // 1% slippage
+        slippageBps: 500,             // 5% slippage
         onlyDirectRoutes: false,      // Allow multi-hop (important!)
         exactIn: true,                // We're giving input amount
+        onlyDirectRoutes: false, // 🆕 ADD THIS
       },
     });
 
