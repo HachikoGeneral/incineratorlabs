@@ -44,7 +44,7 @@ const connection = new Connection(process.env.SOLANA_RPC_URL, 'confirmed');
 const privateKeyArray = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY));
 const wallet = Keypair.fromSecretKey(privateKeyArray);
 const TARGET_TOKEN_MINT = new PublicKey(process.env.TARGET_TOKEN_MINT);
-const INTERVAL = process.env.INTERVAL || '120m';
+const INTERVAL = process.env.INTERVAL || '10m';
 const BURN_RATIO = parseFloat(process.env.BURN_RATIO) || 0.01;
 const MIN_BALANCE_SOL = BURN_RATIO * 1e9;
 
