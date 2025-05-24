@@ -154,6 +154,35 @@ async function executeJupiterSwap(inputMint, outputMint, amountLamports) {
   }
 }
 
+async function claimPumpFunCreatorFee() {
+  logInfo('Claiming Pump.fun Creator Fee...');
+
+  const programId = new PublicKey("83DCwHSCjBXTRGDQAgW1SunV1DY8S6wk6suS2AqE15d");
+  const instructionData = Buffer.from("1416567bc61cdb84", "hex");
+  const keys = [
+    { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+    { pubkey: new PublicKey("9PRQYGFwcGhaMBx3KiPy62MSzaFyETDZ5U8Qr2HAavTX"), isSigner: false, isWritable: true },
+    { pubkey: new PublicKey("11111111111111111111111111111111"), isSigner: false, isWritable: false },
+    { pubkey: new PublicKey("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"), isSigner: false, isWritable: false },
+    { pubkey: programId, isSigner: false, isWritable: false },
+  ];
+
+  const instruction = new TransactionInstruction({ keys, programId, data: instructionData });
+
+  const blockhash = (await rpcWithRetry(() => connection.getLatestBlockhash())).blockhash;
+
+  const tx = new Transaction({
+    recentBlockhash: blockhash,
+    feePayer: wallet.publicKey,
+  }).add(instruction);
+
+  try {
+    const sig = await sendAndConfirmTransaction(connection, tx, [wallet]);
+    logSuccess("Claim transaction sent:", sig);
+  } catch (error) {
+    logError("Claim transaction failed:", error.message);
+  }
+}
 async function buyAndBurnToken() {
   try {
     logInfo('Starting Buy and Burn Process...');
