@@ -15,33 +15,22 @@ const {
 const schedule = require('node-schedule');
 require('dotenv').config();
 
-const WebSocket = require('ws');
-
-// --- Logging & WebSocket ---
-let ws;
-function initWebSocket() {
-  ws = new WebSocket('wss://burn.incineratorlabs.xyz');
-  ws.on('open', () => logInfo('[log stream] connected'));
-  ws.on('close', () => setTimeout(initWebSocket, 3000));
-  ws.on('error', err => logError('[log stream]', err.message));
-}
-function fancyLog(type, ...args) {
-  const emojiMap = { info: 'ℹ️', success: '🚀', error: '❌', retry: '⏳' };
-  const msg = `${emojiMap[type]} ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')}`;
-  console.log(msg);
-  if (ws?.readyState === WebSocket.OPEN) ws.send(msg);
-}
-const logInfo = (...args) => fancyLog('info', ...args);
-const logSuccess = (...args) => fancyLog('success', ...args);
-const logError = (...args) => fancyLog('error', ...args);
-
-initWebSocket();
-
 // --- Config ---
 const connection = new Connection(process.env.SOLANA_RPC_URL, 'confirmed');
 const privateKeyArray = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY));
 const wallet = Keypair.fromSecretKey(privateKeyArray);
 const TARGET_TOKEN_MINT = new PublicKey(process.env.TARGET_TOKEN_MINT);
+
+// --- Logging ---
+function logInfo(...args) {
+  console.log('ℹ️', ...args);
+}
+function logSuccess(...args) {
+  console.log('🚀', ...args);
+}
+function logError(...args) {
+  console.error('❌', ...args);
+}
 
 // --- Helpers ---
 async function getTokenAccountBalance(tokenAccount) {
@@ -80,7 +69,4 @@ async function burnHalfTokenBalance() {
 // --- Schedule daily at 12:00 UTC ---
 schedule.scheduleJob('0 12 * * *', burnHalfTokenBalance);
 logSuccess('🔥 Burn bot (50%) scheduled for 12:00 UTC daily...');
-
-
-
 
