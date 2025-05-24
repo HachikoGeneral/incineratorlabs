@@ -103,54 +103,42 @@ async function getTokenAccountBalance(tokenAccount) {
   }
 }
 
+const { Jupiter } = require('@jup-ag/core');
+
 async function executeJupiterSwap(inputMint, outputMint, amountLamports) {
   try {
-    const inAmount = amountLamports.toString();
-    logInfo(`Swapping: ${inputMint.toBase58()} → ${outputMint.toBase58()} | Amount: ${Number(amountLamports) / 1e9} SOL`);
-
-    const quoteResponse = await fetchWithRetry('GET', 'https://quote-api.jup.ag/v6/quote', {
-      params: {
-        inputMint: inputMint.toBase58(),
-        outputMint: outputMint.toBase58(),
-        amount: inAmount,
-        slippageBps: 500,             // 5% slippage
-        onlyDirectRoutes: false,      // Allow multi-hop (important!)
-        exactIn: true,                // We're giving input amount
-        onlyDirectRoutes: false, // 🆕 ADD THIS
-      },
+    const jupiter = await Jupiter.load({
+      connection,
+      cluster: 'mainnet-beta',
+      user: wallet.publicKey,
     });
 
-    const quote = quoteResponse.data;
+    const routes = await jupiter.computeRoutes({
+      inputMint,
+      outputMint,
+      amount: Number(amountLamports),
+      slippageBps: 100, // 1% slippage
+      forceFetch: true,
+    });
 
-    if (!quote.routes || quote.routes.length === 0) {
+    if (!routes || routes.routesInfos.length === 0) {
       logError('❌ Jupiter swap error: No route found for this token.');
       return null;
     }
 
-    const route = quote.routes[0]; // Select best route
+    const bestRoute = routes.routesInfos[0];
+    logInfo(`🚀 Executing best swap route...`);
 
-    const swapInstructionsResponse = await fetch('https://quote-api.jup.ag/v6/swap-instructions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        quoteResponse: route,
-        userPublicKey: wallet.publicKey.toBase58(),
-      }),
+    const { execute } = await jupiter.exchange({
+      routeInfo: bestRoute,
     });
 
-    const { swapTransaction } = await swapInstructionsResponse.json();
-
-    const tx = VersionedTransaction.deserialize(Buffer.from(swapTransaction, 'base64'));
-    tx.sign([wallet]);
-
-    const txid = await connection.sendTransaction(tx, { skipPreflight: true });
-    await connection.confirmTransaction(txid, 'confirmed');
-
-    logSuccess(`Swap successful: https://solscan.io/tx/${txid}`);
-    return txid;
+    const swapTxId = await execute();
+    logSuccess(`✅ Swap successful: https://solscan.io/tx/${swapTxId}`);
+    return swapTxId;
 
   } catch (error) {
-    logError('Jupiter swap error:', error.message);
+    logError('❌ Jupiter SDK swap failed:', error.message);
     return null;
   }
 }
