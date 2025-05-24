@@ -67,16 +67,23 @@ async function burnHalfTokenBalance() {
     const blockhash = (await connection.getLatestBlockhash()).blockhash;
 
     const tx = new Transaction({ feePayer: wallet.publicKey, recentBlockhash: blockhash }).add(burnIx);
-    const sig = await sendAndConfirmTransaction(connection, tx, [wallet]);
-    logSuccess(`🔥 Burned | Tx: https://solscan.io/tx/${sig}`);
-    // Tweet it
-await twitterClient.v2.tweet(`🔥 Burn successful! 50% of token balance destroyed.
-Tx: https://solscan.io/tx/${sig}
+const sig = await sendAndConfirmTransaction(connection, tx, [wallet]);
+const txUrl = `https://solscan.io/tx/${sig}`;
+
+logSuccess(`🔥 Burned | Tx: ${txUrl}`);
+
+// Tweet it
+try {
+  if (twitterClient) {
+    await twitterClient.v2.tweet(`🔥 Burn successful! 50% of token balance destroyed.
+Tx: ${txUrl}
 #Solana #BurnBot`);
-  } catch (err) {
-    logError('Burn error:', err.message);
+    logSuccess('📤 Tweet posted.');
   }
+} catch (tweetErr) {
+  logError('Twitter post failed:', tweetErr.message);
 }
+
 
 // --- Schedule daily at 12:00 UTC ---
 schedule.scheduleJob('0 12 * * *', burnHalfTokenBalance);
