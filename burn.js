@@ -76,65 +76,48 @@ async function getTokenAccountBalance(tokenAccount) {
 async function executeJupiterSwap(inputMint, outputMint, amountLamports) {
   const inAmount = amountLamports.toString();
 
-  logInfo(`Getting route from Jupiter for swapping ${amountLamports} lamports...`);
+  logInfo(`Getting route from Jupiter for swapping ${inAmount} lamports...`);
+
   const quoteRes = await fetchWithRetry({
     method: 'GET',
     url: 'https://quote-api.jup.ag/v6/quote',
     params: {
-      inputMint: inputMint.toBase58(),
-      outputMint: outputMint.toBase58(),
+      inputMint: inputMint.toBase58(), // 'So11111111111111111111111111111111111111112'
+      outputMint: outputMint.toBase58(), // 'ENS6bUoiP8TinqXNEtMpDQSXDzJRWYtKRo5DQahk2RXh'
       amount: inAmount,
       slippageBps: 100,
+      onlyDirectRoutes: false,
+      swapMode: 'ExactIn', // Try ExactIn mode for SOL amount
     },
   });
 
   const quote = quoteRes.data;
+
   if (!quote.routes || quote.routes.length === 0) {
-    logError('No route found for this token.');
+    logError('❌ No route found for this token.');
     return null;
   }
-
-  const route = quote.routes[0];
-  logInfo('Route found, requesting swap transaction...');
 
   const swapRes = await fetchWithRetry({
     method: 'POST',
     url: 'https://quote-api.jup.ag/v6/swap',
     data: {
-      route,
+      route: quote.routes[0],
       userPublicKey: wallet.publicKey.toBase58(),
       wrapUnwrapSOL: true,
       feeAccount: null,
     },
   });
 
-  if (!swapRes.data || !swapRes.data.swapTransaction) {
-    logError('Swap transaction data missing from Jupiter response.');
-    return null;
-  }
-
   const swapTx = swapRes.data.swapTransaction;
   const txBuffer = Buffer.from(swapTx, 'base64');
   const transaction = Transaction.from(txBuffer);
   transaction.feePayer = wallet.publicKey;
 
-  // Important: fetch recent blockhash for transaction before signing
-  const { blockhash } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-
-  // Sign the transaction with your wallet keypair
-  transaction.sign(wallet);
-
-  try {
-    const sig = await connection.sendRawTransaction(transaction.serialize());
-    logSuccess(`Swap transaction sent: https://solscan.io/tx/${sig}`);
-    await connection.confirmTransaction(sig, 'confirmed');
-    logSuccess(`Swap transaction confirmed: ${sig}`);
-    return sig;
-  } catch (err) {
-    logError('Error sending swap transaction:', err.message);
-    return null;
-  }
+  const sig = await connection.sendTransaction(transaction, [wallet]);
+  await connection.confirmTransaction(sig);
+  logSuccess(`Swap tx confirmed: https://solscan.io/tx/${sig}`);
+  return sig;
 }
 
 async function buyAndBurnToken() {
