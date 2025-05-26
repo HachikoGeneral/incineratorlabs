@@ -78,7 +78,7 @@ async function burnHalfTokenBalance() {
 
     // Tweet it
     try {
-      await twitterClient.v2.tweet(`🔥 Burn successful! 50% of token balance destroyed.\nTx: ${txUrl}\n#Solana #BurnBot`);
+      await twitterClient.v2.tweet(`🔥 Burn successful! 50% of $cycle wallet balance destroyed.\nTx: ${txUrl}\n#Solana #BurnBot`);
       logSuccess('📤 Tweet posted.');
     } catch (tweetErr) {
       logError('Twitter post failed:', tweetErr.message);
