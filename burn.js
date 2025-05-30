@@ -51,6 +51,21 @@ async function getTokenAccountBalance(tokenAccount) {
   }
 }
 
+async function retry(fn, retries = 3, delayMs = 5000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      logError(`Attempt ${i + 1} failed:`, err.message);
+      if (i < retries - 1) {
+        await new Promise(res => setTimeout(res, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 // --- Burn 50% ---
 async function burnHalfTokenBalance() {
   try {
@@ -64,33 +79,35 @@ async function burnHalfTokenBalance() {
     }
 
     const burnAmount = tokenBalance / BigInt(2);
-    const burnIx = createBurnInstruction(ata, TARGET_TOKEN_MINT, wallet.publicKey, burnAmount);
 
-    // Re-fetch blockhash right before creating transaction
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    const sig = await retry(async () => {
+      const burnIx = createBurnInstruction(ata, TARGET_TOKEN_MINT, wallet.publicKey, burnAmount);
+      const { blockhash } = await connection.getLatestBlockhash();
 
-    const tx = new Transaction({
-      feePayer: wallet.publicKey,
-      recentBlockhash: blockhash,
-    }).add(burnIx);
+      const tx = new Transaction({
+        feePayer: wallet.publicKey,
+        recentBlockhash: blockhash,
+      }).add(burnIx);
 
-    const sig = await sendAndConfirmTransaction(connection, tx, [wallet], {
-      skipPreflight: false,
-      preflightCommitment: 'confirmed',
+      return await sendAndConfirmTransaction(connection, tx, [wallet], {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
     });
 
     const txUrl = `https://solscan.io/tx/${sig}`;
     logSuccess(`🔥 Burned | Tx: ${txUrl}`);
 
-    try {
+    await retry(async () => {
       const tweetText = `🔥 Burn successful! 50% of token balance destroyed.\nTx: ${txUrl}\nTime: ${new Date().toISOString()}\n#Solana #BurnBot`;
       await twitterClient.v2.tweet(tweetText);
       logSuccess('📤 Tweet posted.');
-    } catch (tweetErr) {
-      logError('Twitter post failed:', tweetErr.response?.data || tweetErr.message);
-    }
+    });
 
   } catch (err) {
-    logError('Burn error:', err.message);
+    logError('Burn or Tweet failed after retries:', err.message);
   }
 }
+
+schedule.scheduleJob('0 12 * * *', burnHalfTokenBalance); // Runs every day at 12:00 UTC
+
