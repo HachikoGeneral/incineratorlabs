@@ -65,31 +65,32 @@ async function burnHalfTokenBalance() {
 
     const burnAmount = tokenBalance / BigInt(2);
     const burnIx = createBurnInstruction(ata, TARGET_TOKEN_MINT, wallet.publicKey, burnAmount);
-    const blockhash = (await connection.getLatestBlockhash()).blockhash;
+
+    // Re-fetch blockhash right before creating transaction
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
 
     const tx = new Transaction({
       feePayer: wallet.publicKey,
       recentBlockhash: blockhash,
     }).add(burnIx);
 
-    const sig = await sendAndConfirmTransaction(connection, tx, [wallet]);
+    const sig = await sendAndConfirmTransaction(connection, tx, [wallet], {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    });
+
     const txUrl = `https://solscan.io/tx/${sig}`;
     logSuccess(`🔥 Burned | Tx: ${txUrl}`);
 
-    // Tweet it
     try {
-      await twitterClient.v2.tweet(`🔥 Burn successful! 50% of $cycle wallet balance destroyed.\nTx: ${txUrl}\n#Solana #BurnBot`);
+      const tweetText = `🔥 Burn successful! 50% of token balance destroyed.\nTx: ${txUrl}\nTime: ${new Date().toISOString()}\n#Solana #BurnBot`;
+      await twitterClient.v2.tweet(tweetText);
       logSuccess('📤 Tweet posted.');
     } catch (tweetErr) {
-      logError('Twitter post failed:', tweetErr.message);
+      logError('Twitter post failed:', tweetErr.response?.data || tweetErr.message);
     }
 
   } catch (err) {
     logError('Burn error:', err.message);
   }
 }
-
-// --- Schedule daily at 12:00 UTC ---
-schedule.scheduleJob('0 12 * * *', burnHalfTokenBalance);
-logSuccess('🔥 Burn bot (50%) scheduled for 12:00 UTC daily...');
-
