@@ -99,7 +99,7 @@ async function burnHalfTokenBalance() {
     logSuccess(`🔥 Burned | Tx: ${txUrl}`);
 
     await retry(async () => {
-      const tweetText = `🔥 Burn successful! 50% of token balance destroyed.\nTx: ${txUrl}\nTime: ${new Date().toISOString()}\n#Solana #BurnBot`;
+      const tweetText = `🔥 Burn successful! 50% of wallet token balance destroyed.\nTx: ${txUrl}\nTime: ${new Date().toISOString()}\n#Solana #BurnBot`;
       await twitterClient.v2.tweet(tweetText);
       logSuccess('📤 Tweet posted.');
     });
